@@ -135,25 +135,33 @@ const sendOrder = () => {
     return;
   }
 
-  let message = `🔥 *NOVO PEDIDO - CHURRASQUINHO DA TIA VERA* 🔥\n\n`;
-  message += `👤 *Cliente:* ${customer.name}\n\n`;
+  // Cabeçalho
+  let text = `🔥 *PEDIDO - TIA VERA* 🔥\n\n`;
+  text += `👤 *Cliente:* ${customer.name}\n`;
+  text += `-----------------------------------\n`;
   
-  message += `📋 *ITENS DO PEDIDO:* \n`;
+  // Itens
+  text += `📋 *ITENS:* \n`;
   cart.value.forEach(item => {
-    message += `▪️ ${item.quantity}x ${item.name}\n`;
-    message += `   (Total Item: R$ ${(item.price * item.quantity).toFixed(2).replace('.', ',')})\n`;
+    // Calcula o total daquele item (ex: 2x 16,90)
+    const totalItem = (item.price * item.quantity).toFixed(2).replace('.', ',');
+    text += `▪️ ${item.quantity}x ${item.name} ... R$ ${totalItem}\n`;
   });
 
-  message += `\n💰 *VALOR TOTAL: R$ ${cartTotal.value.toFixed(2).replace('.', ',')}*\n`;
-  message += `----------------------------------\n`;
-  message += `📍 *ENDEREÇO DE ENTREGA:* \n`;
-  message += `${customer.address}, Nº ${customer.number}\n`;
-  if(customer.complement) message += `Comp: ${customer.complement}\n`;
-  message += `CEP: ${customer.cep}\n\n`;
+  // Total Geral
+  text += `\n💰 *TOTAL FINAL: R$ ${cartTotal.value.toFixed(2).replace('.', ',')}*\n`;
+  text += `-----------------------------------\n`;
   
-  message += `💳 *PAGAMENTO:* ${customer.paymentMethod}`;
+  // Endereço e Pagamento
+  text += `📍 *ENTREGA:* \n`;
+  text += `${customer.address}, Nº ${customer.number}\n`;
+  if(customer.complement) text += `(Comp: ${customer.complement})\n`;
+  text += `CEP: ${customer.cep}\n\n`;
+  
+  text += `💳 *PAGAMENTO:* ${customer.paymentMethod}`;
 
-  const url = `https://wa.me/${PHONE_NUMBER}?text=${encodeURIComponent(message)}`;
+  // Cria o link final
+  const url = `https://wa.me/${PHONE_NUMBER}?text=${encodeURIComponent(text)}`;
   window.open(url, '_blank');
 };
 
