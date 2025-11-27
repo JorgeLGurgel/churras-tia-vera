@@ -181,9 +181,22 @@ const sendOrder = () => {
   // Itens
   text += `📋 *ITENS:* \n`;
   cart.value.forEach(item => {
-    // Calcula o total daquele item (ex: 2x 16,90)
     const totalItem = (item.price * item.quantity).toFixed(2).replace('.', ',');
-    text += `▪️ ${item.quantity}x ${item.name} ... R$ ${totalItem}\n`;
+    
+    // --- LÓGICA DE DISTINÇÃO VISUAL ---
+    let nomeFormatado = item.name;
+
+    // Se a categoria for "Espetinho Completo", adiciona destaque
+    if (item.categoryName.includes('Completo')) {
+      nomeFormatado += ' ⭐ (COMPLETO)'; 
+    } 
+    // Se for "Espetinho Simples", adiciona identificação discreta
+    else if (item.categoryName.includes('Simples')) {
+      nomeFormatado += ' (Simples)';
+    }
+    // (Bebidas e Guarnições ficam apenas com o nome normal)
+
+    text += `▪️ ${item.quantity}x ${nomeFormatado} ... R$ ${totalItem}\n`;
   });
 
   // Total Geral
