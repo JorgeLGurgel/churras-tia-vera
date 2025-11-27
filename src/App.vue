@@ -107,26 +107,64 @@ const cartCount = computed(() => {
 });
 
 // --- API DE CEP ---
+// --- API DE CEP ---
 const searchCep = async () => {
   const cleanCep = customer.cep.replace(/\D/g, '');
+  
+  // Se o usuário apagar o CEP, limpamos o endereço e os campos somem
+  if (cleanCep === '') {
+    customer.address = '';
+    customer.number = '';
+    customer.complement = '';
+    return;
+  }
+
   if (cleanCep.length === 8) {
     isLoadingCep.value = true;
+    customer.address = ''; // Limpa o endereço anterior para "resetar" a visão
+    
     try {
       const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
       const data = await response.json();
+      
       if (!data.erro) {
         customer.address = `${data.logradouro}, ${data.bairro}`;
-        document.getElementById('numberInput')?.focus();
+        
+        // Pequeno delay para o DOM atualizar e o campo aparecer antes de focar
+        setTimeout(() => {
+            document.getElementById('numberInput')?.focus();
+        }, 100);
       } else {
-        alert('CEP não encontrado. Digite o endereço manualmente se preferir.');
+        alert('CEP não encontrado. Verifique o número.');
       }
     } catch (error) {
-      // Falha silenciosa ou alerta simples
+      console.error(error);
     } finally {
       isLoadingCep.value = false;
     }
   }
 };
+
+// --- VALIDAÇÃO DO FORMULÁRIO ---
+const isOrderValid = computed(() => {
+  // 1. Carrinho não pode estar vazio
+  if (cart.value.length === 0) return false;
+
+  // 2. Nome é obrigatório
+  if (!customer.name || customer.name.trim() === '') return false;
+
+  // 3. Endereço deve ter sido carregado pela API (não pode estar vazio)
+  if (!customer.address || customer.address === '') return false;
+
+  // 4. Número é obrigatório
+  if (!customer.number || customer.number.trim() === '') return false;
+
+  // 5. Pagamento deve estar selecionado
+  if (!customer.paymentMethod || customer.paymentMethod === '') return false;
+
+  // Se passou por tudo, está válido!
+  return true;
+});
 
 // --- FINALIZAR PEDIDO (WHATSAPP) ---
 const sendOrder = () => {
@@ -265,21 +303,42 @@ const formatCurrency = (value) => {
             </div>
 
             <div class="form-row">
-               <div class="form-group" style="flex: 1;">
-                <label>CEP</label>
-                <div class="input-wrapper">
-                  <input v-model="customer.cep" @blur="searchCep" placeholder="00000-000" type="tel" maxlength="9" />
-                  <span v-if="isLoadingCep" class="loading-icon">⌛</span>
-                </div>
-              </div>
-            </div>
+  <div class="form-group" style="flex: 1;">
+    <label>CEP</label>
+    
+    <div class="cep-input-group">
+      <!-- Input de Texto -->
+      <input 
+        v-model="customer.cep" 
+        @keyup.enter="searchCep"
+        placeholder="00000-000" 
+        type="tel" 
+        maxlength="9" 
+      />
+      
+      <!-- Botão de Busca -->
+      <button 
+        type="button" 
+        @click="searchCep" 
+        class="search-btn"
+        :disabled="isLoadingCep"
+      >
+        <!-- Mostra ampulheta se estiver carregando, senão mostra a lupa -->
+        <span v-if="isLoadingCep">⌛</span>
+        <span v-else>🔍</span>
+      </button>
+    </div>
+
+  </div>
+</div>
 
             <!-- Endereço aparece se preenchido -->
-            <div v-if="customer.address" class="address-box">
+            <div v-if="customer.address" class="address-box slide-in">
               <p>📍 {{ customer.address }}</p>
             </div>
 
-            <div class="form-row">
+            <!-- AQUI ESTÁ A MUDANÇA: Adicionei o v-if="customer.address" nesta div -->
+            <div v-if="customer.address" class="form-row slide-in">
               <div class="form-group short">
                 <label>Número *</label>
                 <input id="numberInput" v-model="customer.number" placeholder="Nº" required />
@@ -305,8 +364,18 @@ const formatCurrency = (value) => {
               </div>
             </div>
 
-            <button type="submit" class="whatsapp-btn">
-              <span class="icon">📲</span> Enviar Pedido no WhatsApp
+            <button 
+              type="submit" 
+              class="whatsapp-btn" 
+              :disabled="!isOrderValid"
+            >
+              <!-- Mostra ícone de cadeado se estiver bloqueado -->
+              <span v-if="!isOrderValid" class="icon">🔒</span>
+              <span v-else class="icon">📲</span>
+              
+              <!-- Muda o texto dependendo se está válido ou não -->
+              <span v-if="!isOrderValid">Preencha os dados obrigatórios</span>
+              <span v-else>Enviar Pedido no WhatsApp</span>
             </button>
           </form>
         </div>
@@ -523,8 +592,76 @@ h1 { margin: 0; color: #FFC107; text-transform: uppercase; font-size: 1.4rem; te
 }
 .whatsapp-btn:hover { background: #1ebc57; }
 
+/* Estado Desativado do Botão */
+.whatsapp-btn:disabled {
+  background-color: #444; /* Cinza escuro */
+  color: #888; /* Texto cinza claro */
+  cursor: not-allowed; /* Mostra o símbolo de proibido no mouse */
+  border: 1px solid #555;
+  opacity: 0.8;
+}
+
+/* Remove o efeito de hover quando desativado */
+.whatsapp-btn:disabled:hover {
+  background-color: #444;
+}
+
 @media (min-width: 600px) {
   .modal-overlay { align-items: center; }
   .modal-content { height: auto; max-height: 90vh; border-radius: 20px; }
+}
+
+/* Container que segura o input e o botão juntos */
+.cep-input-group {
+  display: flex;
+  width: 100%;
+}
+
+/* Ajuste no input para ele não ter bordas arredondadas na direita */
+.cep-input-group input {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: none; /* Remove a borda da direita para colar no botão */
+  flex: 1; /* Ocupa todo o espaço possível */
+}
+
+/* Estilo do Botão de Busca */
+.search-btn {
+  background-color: #FFC107; /* Amarelo da marca */
+  border: 1px solid #FFC107;
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
+  width: 50px;
+  cursor: pointer;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.search-btn:active {
+  background-color: #e0a800;
+}
+
+.search-btn:disabled {
+  background-color: #ccc;
+  border-color: #ccc;
+  cursor: not-allowed;
+}
+
+.slide-in {
+  animation: slideDown 0.4s ease-out forwards;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>
