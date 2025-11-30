@@ -186,9 +186,16 @@ const sendOrder = () => {
   
   // Endereço Novo
   text += `📍 *ENTREGA:* \n`;
-  text += `🏢 ${customer.condo}\n`;
+  text += `🏡 ${customer.condo}\n`; // Troquei o ícone pra casa, fica mais genérico
   text += `Rua: ${customer.street}\n`;
-  text += `Casa Nº: ${customer.number}\n\n`;
+  text += `Casa Nº: ${customer.number}\n`;
+  
+  // ADICIONE ISSO AQUI:
+  if (customer.reference) {
+    text += `Ref: ${customer.reference}\n`;
+  }
+  
+  text += `\n`; // Quebra de linha final
   
   // Pagamento e Troco
   text += `💳 *PAGAMENTO:* ${customer.paymentMethod}`;
@@ -433,10 +440,25 @@ const formatCurrency = (value) => {
 .app-container {
   background-color: #121212;
   color: #fff;
-  min-height: 100vh;
+  min-height: 100vh; /* Ocupa a altura total da tela */
+  width: 100%;       /* Ocupa a largura total */
   padding-bottom: 100px;
+  
+  /* Lógica para Centralizar APENAS no Desktop */
   max-width: 600px;
-  margin: 0 auto;
+  margin: 0 auto; 
+  
+  /* Removemos a sombra no mobile para parecer nativo */
+  box-shadow: none; 
+}
+
+/* Se a tela for grande (Desktop), aí sim colocamos uma sombra */
+@media (min-width: 600px) {
+  .app-container {
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    border-left: 1px solid #333;
+    border-right: 1px solid #333;
+  }
 }
 
 /* HEADER */
