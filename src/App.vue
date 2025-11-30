@@ -52,22 +52,22 @@ const cart = ref([]);
 const isCheckoutOpen = ref(false);
 const isLoadingCep = ref(false);
 
+// --- DADOS DO CLIENTE ATUALIZADOS ---
 const customer = reactive({
   name: '',
-  // Telefone removido conforme solicitado
-  cep: '',
-  address: '', // Rua + Bairro
-  number: '',
-  complement: '',
-  paymentMethod: ''
+  condo: '',     // Novo: Armazena qual condomínio
+  street: '',    // Novo: Rua do condomínio
+  number: '',    // Número da casa
+  paymentMethod: '',
+  changeFor: ''  // Novo: Valor para troco
 });
 
 // Opções de Pagamento com Ícones
 const paymentOptions = [
   { id: 'PIX', label: 'PIX', icon: '💠' },
   { id: 'Dinheiro', label: 'Dinheiro', icon: '💵' },
-  { id: 'Cartão Crédito', label: 'Crédito', icon: '💳' },
-  { id: 'Cartão Débito', label: 'Débito', icon: '🏧' }
+  // { id: 'Cartão Crédito', label: 'Crédito', icon: '💳' },
+  // { id: 'Cartão Débito', label: 'Débito', icon: '🏧' }
 ];
 
 // --- LÓGICA DO CARRINHO ---
@@ -145,35 +145,25 @@ const searchCep = async () => {
   }
 };
 
-// --- VALIDAÇÃO DO FORMULÁRIO ---
+// --- VALIDAÇÃO ATUALIZADA ---
 const isOrderValid = computed(() => {
-  // 1. Carrinho não pode estar vazio
   if (cart.value.length === 0) return false;
-
-  // 2. Nome é obrigatório
   if (!customer.name || customer.name.trim() === '') return false;
-
-  // 3. Endereço deve ter sido carregado pela API (não pode estar vazio)
-  if (!customer.address || customer.address === '') return false;
-
-  // 4. Número é obrigatório
+  
+  // Validações do novo endereço
+  if (!customer.condo) return false;
+  if (!customer.street || customer.street.trim() === '') return false;
   if (!customer.number || customer.number.trim() === '') return false;
 
-  // 5. Pagamento deve estar selecionado
-  if (!customer.paymentMethod || customer.paymentMethod === '') return false;
+  if (!customer.paymentMethod) return false;
 
-  // Se passou por tudo, está válido!
   return true;
 });
 
-// --- FINALIZAR PEDIDO (WHATSAPP) ---
+// --- ENVIO WHATSAPP ATUALIZADO ---
 const sendOrder = () => {
-  if (!customer.name || !customer.address || !customer.number || !customer.paymentMethod) {
-    alert('Por favor, preencha nome, endereço completo e forma de pagamento.');
-    return;
-  }
+  if (!isOrderValid.value) return;
 
-  // Cabeçalho
   let text = `🔥 *PEDIDO - TIA VERA* 🔥\n\n`;
   text += `👤 *Cliente:* ${customer.name}\n`;
   text += `-----------------------------------\n`;
@@ -182,39 +172,38 @@ const sendOrder = () => {
   text += `📋 *ITENS:* \n`;
   cart.value.forEach(item => {
     const totalItem = (item.price * item.quantity).toFixed(2).replace('.', ',');
-    
-    // --- LÓGICA DE DISTINÇÃO VISUAL ---
     let nomeFormatado = item.name;
 
-    // Se a categoria for "Espetinho Completo", adiciona destaque
-    if (item.categoryName.includes('Completo')) {
-      nomeFormatado += ' ⭐ (COMPLETO)'; 
-    } 
-    // Se for "Espetinho Simples", adiciona identificação discreta
-    else if (item.categoryName.includes('Simples')) {
-      nomeFormatado += ' (Simples)';
-    }
-    // (Bebidas e Guarnições ficam apenas com o nome normal)
+    if (item.categoryName.includes('Completo')) nomeFormatado += ' ⭐ (COMPLETO)'; 
+    else if (item.categoryName.includes('Simples')) nomeFormatado += ' (Simples)';
 
     text += `▪️ ${item.quantity}x ${nomeFormatado} ... R$ ${totalItem}\n`;
   });
 
-  // Total Geral
   text += `\n💰 *TOTAL FINAL: R$ ${cartTotal.value.toFixed(2).replace('.', ',')}*\n`;
   text += `-----------------------------------\n`;
   
-  // Endereço e Pagamento
+  // Endereço Novo
   text += `📍 *ENTREGA:* \n`;
-  text += `${customer.address}, Nº ${customer.number}\n`;
-  if(customer.complement) text += `(Comp: ${customer.complement})\n`;
-  text += `CEP: ${customer.cep}\n\n`;
+  text += `🏢 ${customer.condo}\n`;
+  text += `Rua: ${customer.street}\n`;
+  text += `Casa Nº: ${customer.number}\n\n`;
   
+  // Pagamento e Troco
   text += `💳 *PAGAMENTO:* ${customer.paymentMethod}`;
+  
+  if (customer.paymentMethod === 'Dinheiro') {
+    if (customer.changeFor) {
+      text += `\n💵 (Troco para: ${customer.changeFor})`;
+    } else {
+      text += `\n💵 (Não precisa de troco)`;
+    }
+  }
 
-  // Cria o link final
   const url = `https://wa.me/${PHONE_NUMBER}?text=${encodeURIComponent(text)}`;
   window.open(url, '_blank');
 };
+
 
 const formatCurrency = (value) => {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -277,13 +266,18 @@ const formatCurrency = (value) => {
         </div>
 
         <div class="modal-body">
-          
-          <!-- LISTA DE ITENS EDITÁVEL -->
+          <!-- === SEÇÃO 1: RESUMO DO PEDIDO (Recuperado) === -->
           <h3 class="section-title">Seu Pedido</h3>
+          
           <ul class="cart-items-list">
             <li v-for="item in cart" :key="item.id" class="cart-item-row">
               <div class="item-left">
-                <div class="item-name">{{ item.name }}</div>
+                <div class="item-name">
+                  {{ item.name }}
+                  <!-- Mostra se é Completo ou Simples visualmente -->
+                  <span v-if="item.categoryName.includes('Completo')" class="badge-complete">⭐ Completo</span>
+                  <span v-else class="badge-simple">Simples</span>
+                </div>
                 <div class="item-price-unit">{{ formatCurrency(item.price) }} / un</div>
               </div>
               
@@ -300,12 +294,14 @@ const formatCurrency = (value) => {
             </li>
           </ul>
 
+          <!-- SUBTOTAL -->
           <div class="total-row">
             <span>Total a Pagar:</span>
             <span class="total-price">{{ formatCurrency(cartTotal) }}</span>
           </div>
 
-          <!-- FORMULÁRIO -->
+          <hr class="divider">
+         <!-- FORMULÁRIO -->
           <form @submit.prevent="sendOrder" class="checkout-form">
             
             <h3 class="section-title">Dados de Entrega</h3>
@@ -315,50 +311,39 @@ const formatCurrency = (value) => {
               <input v-model="customer.name" placeholder="Ex: Jorge Silva" required />
             </div>
 
-            <div class="form-row">
-  <div class="form-group" style="flex: 1;">
-    <label>CEP</label>
-    
-    <div class="cep-input-group">
-      <!-- Input de Texto -->
-      <input 
-        v-model="customer.cep" 
-        @keyup.enter="searchCep"
-        placeholder="00000-000" 
-        type="tel" 
-        maxlength="9" 
-      />
-      
-      <!-- Botão de Busca -->
-      <button 
-        type="button" 
-        @click="searchCep" 
-        class="search-btn"
-        :disabled="isLoadingCep"
-      >
-        <!-- Mostra ampulheta se estiver carregando, senão mostra a lupa -->
-        <span v-if="isLoadingCep">⌛</span>
-        <span v-else>🔍</span>
-      </button>
-    </div>
-
-  </div>
-</div>
-
-            <!-- Endereço aparece se preenchido -->
-            <div v-if="customer.address" class="address-box slide-in">
-              <p>📍 {{ customer.address }}</p>
+            <!-- SELEÇÃO DE CONDOMÍNIO -->
+            <div class="form-group">
+              <label>Onde será a entrega?</label>
+              <div class="condo-grid">
+                <div 
+                  class="condo-card"
+                  :class="{ active: customer.condo === 'Condomínio Vila Gaia' }"
+                  @click="customer.condo = 'Condomínio Vila Gaia'"
+                >
+                  🏢 Vila Gaia
+                </div>
+                <div 
+                  class="condo-card"
+                  :class="{ active: customer.condo === 'Condomínio Estoril' }"
+                  @click="customer.condo = 'Condomínio Estoril'"
+                >
+                  🏢 Estoril
+                </div>
+              </div>
             </div>
 
-            <!-- AQUI ESTÁ A MUDANÇA: Adicionei o v-if="customer.address" nesta div -->
-            <div v-if="customer.address" class="form-row slide-in">
-              <div class="form-group short">
-                <label>Número *</label>
-                <input id="numberInput" v-model="customer.number" placeholder="Nº" required />
-              </div>
+            <!-- RUA E NÚMERO (Só aparecem se escolher o condomínio) -->
+            <div v-if="customer.condo" class="slide-in">
+              <p class="selected-condo-text">Entregar em: <strong>{{ customer.condo }}</strong></p>
+              
               <div class="form-group">
-                <label>Complemento</label>
-                <input v-model="customer.complement" placeholder="Apto, Bloco, etc" />
+                <label>Nome da Rua</label>
+                <input v-model="customer.street" placeholder="Ex: Rua A" required />
+              </div>
+
+              <div class="form-group">
+                <label>Número da Casa</label>
+                <input v-model="customer.number" placeholder="Nº da casa" type="tel" required />
               </div>
             </div>
 
@@ -377,16 +362,25 @@ const formatCurrency = (value) => {
               </div>
             </div>
 
+            <!-- CAMPO DE TROCO (Só aparece se for Dinheiro) -->
+            <div v-if="customer.paymentMethod === 'Dinheiro'" class="change-box slide-in">
+              <label>Precisa de troco para quanto?</label>
+              <input 
+                v-model="customer.changeFor" 
+                v-money-format
+                placeholder="Ex: 50,00 (Deixe vazio se for certinho)" 
+                type="tel"
+              />
+            </div>
+
             <button 
               type="submit" 
               class="whatsapp-btn" 
               :disabled="!isOrderValid"
             >
-              <!-- Mostra ícone de cadeado se estiver bloqueado -->
               <span v-if="!isOrderValid" class="icon">🔒</span>
               <span v-else class="icon">📲</span>
               
-              <!-- Muda o texto dependendo se está válido ou não -->
               <span v-if="!isOrderValid">Preencha os dados obrigatórios</span>
               <span v-else>Enviar Pedido no WhatsApp</span>
             </button>
@@ -517,6 +511,85 @@ h1 { margin: 0; color: #FFC107; text-transform: uppercase; font-size: 1.4rem; te
 
 .modal-body {
   padding: 20px; overflow-y: auto; flex: 1;
+}
+
+/* Divisor entre lista e formulário */
+.divider {
+  border: 0;
+  border-top: 1px dashed #444;
+  margin: 20px 0;
+}
+
+/* Badges para diferenciar Simples de Completo na lista */
+.badge-complete {
+  background-color: #FFC107;
+  color: #000;
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 5px;
+  font-weight: bold;
+  vertical-align: middle;
+}
+
+.badge-simple {
+  background-color: #444;
+  color: #ccc;
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 5px;
+  vertical-align: middle;
+}
+
+/* ESTILOS NOVOS PARA CONDOMÍNIO */
+.condo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.condo-card {
+  background: #333;
+  border: 2px solid #444;
+  padding: 15px 5px;
+  border-radius: 10px;
+  text-align: center;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.2s;
+  color: #ddd;
+}
+
+.condo-card.active {
+  border-color: #FFC107;
+  background: rgba(255, 193, 7, 0.15);
+  color: #FFC107;
+}
+
+.selected-condo-text {
+  color: #FFC107;
+  margin-bottom: 10px;
+  font-size: 0.9rem;
+  border-bottom: 1px dashed #555;
+  padding-bottom: 5px;
+}
+
+/* ESTILO DO CAMPO DE TROCO */
+.change-box {
+  background: #2a2a2a;
+  padding: 15px;
+  border-radius: 8px;
+  margin-top: -20px; /* Cola no grid de pagamento */
+  margin-bottom: 20px;
+  border: 1px solid #444;
+  border-left: 4px solid #FFC107;
+}
+
+.change-box label {
+  color: #FFC107;
+  font-weight: bold;
 }
 
 .section-title {
