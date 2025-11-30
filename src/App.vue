@@ -58,6 +58,7 @@ const customer = reactive({
   condo: '',     // Novo: Armazena qual condomínio
   street: '',    // Novo: Rua do condomínio
   number: '',    // Número da casa
+  reference: '', // <--- ADICIONE ESTA LINHA NOVA
   paymentMethod: '',
   changeFor: ''  // Novo: Valor para troco
 });
@@ -329,6 +330,20 @@ const formatCurrency = (value) => {
                 >
                   🏢 Estoril
                 </div>
+                <div 
+                  class="condo-card"
+                  :class="{ active: customer.condo === 'Bairro Colônia Japonesa' }"
+                  @click="customer.condo = 'Bairro Colônia Japonesa'"
+                >
+                  📍 Bairro Colônia Japonesa
+                </div>
+                <div 
+                  class="condo-card"
+                  :class="{ active: customer.condo === 'Bairro Tiradentes' }"
+                  @click="customer.condo = 'Bairro Tiradentes'"
+                >
+                  📍 Bairro Tiradentes
+                </div>
               </div>
             </div>
 
@@ -338,7 +353,7 @@ const formatCurrency = (value) => {
               
               <div class="form-group">
                 <label>Nome da Rua</label>
-                <input v-model="customer.street" placeholder="Ex: Rua A" required />
+                <input v-model="customer.street" placeholder="Ex: Rua Urano" required />
               </div>
 
               <div class="form-group">
@@ -346,6 +361,16 @@ const formatCurrency = (value) => {
                 <input v-model="customer.number" placeholder="Nº da casa" type="tel" required />
               </div>
             </div>
+
+            <!-- === NOVO CAMPO: PONTO DE REFERÊNCIA === -->
+              <!-- Só aparece se o local escolhido tiver "Bairro" no nome -->
+              <div v-if="customer.condo.includes('Bairro')" class="form-group slide-in">
+                <label>Ponto de Referência</label>
+                <input 
+                  v-model="customer.reference" 
+                  placeholder="Ex: Próximo ao mercadinho..." 
+                />
+              </div>
 
             <h3 class="section-title">Forma de Pagamento</h3>
             
